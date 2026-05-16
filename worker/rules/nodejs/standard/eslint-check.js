@@ -24,8 +24,8 @@ class EslintCheckRule extends BaseRule {
             const eslintPath = path.join(__dirname, '../../../../node_modules/.bin/eslint');
             const cmd = fs.existsSync(eslintPath) ? eslintPath : 'npx eslint';
             
-            // Sử dụng một cấu hình cơ bản để bắt các lỗi nghiêm trọng theo yêu cầu của bạn
-            const command = `${cmd} ${jsFiles.join(' ')} --no-eslintrc --env browser,node,es2021 --parser-options=ecmaVersion:latest,sourceType:module --plugin react --rule 'no-undef: error' --rule 'no-unused-vars: error' --rule 'no-redeclare: error' --format json`;
+            // Lệnh quét chuẩn cho ESLint v8 (hỗ trợ tốt quét nhanh qua CLI)
+            const command = `${cmd} ${jsFiles.join(' ')} --no-eslintrc --env browser,node,es2021 --parser-options=ecmaVersion:latest,sourceType:module --parser-options=ecmaFeatures:jsx --plugin react --rule 'no-undef: error' --rule 'no-unused-vars: error' --rule 'no-redeclare: error' --format json`;
             
             const output = execSync(command, { encoding: 'utf8', stdio: 'pipe' });
             return { valid: true };

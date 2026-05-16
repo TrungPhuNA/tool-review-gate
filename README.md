@@ -2,27 +2,28 @@
 
 Hệ thống kiểm soát chất lượng commit tập trung cho nhiều dự án (PHP Laravel, NodeJS, ReactJS).
 
-## 1. Cài đặt lệnh kiểm tra toàn cục (CLI)
+## 1. Kiểm tra mã nguồn (CLI)
 
-Để có thể đứng ở bất kỳ project nào và gõ lệnh kiểm tra, hãy thực hiện:
+Bạn có thể chạy lệnh này bất kỳ lúc nào để kiểm tra code ngay lập tức (kể cả khi chưa `git add`):
 
 ```bash
-cd /Users/phuphan/Documents/work/tool/tool-review-gate
-npm link
+review-check
 ```
-
-Bây giờ bạn có thể dùng lệnh: `review-check` để kiểm tra commit của project hiện tại.
+*Hệ thống sẽ quét toàn bộ các file bạn đang sửa dở và báo lỗi nếu có.*
 
 ---
 
-## 2. Cách kích hoạt bảo vệ cho dự án (Git Hooks)
+## 2. Cách kích hoạt "Trạm gác" tự động (Git Hooks)
 
-### Cách A: Kích hoạt thủ công cho từng dự án (Khuyên dùng)
-Di chuyển vào thư mục dự án bạn muốn bảo vệ và chạy:
+Để hệ thống tự động chặn các commit lỗi, hãy di chuyển vào thư mục dự án và chạy:
+
 ```bash
 review-check init
 ```
-**Kết quả:** Mỗi khi bạn gõ `git commit`, hệ thống sẽ tự động quét code và message. Nếu có lỗi nghiêm trọng, commit sẽ bị chặn đứng.
+
+**Kết quả:** Mỗi khi bạn gõ `git commit`, hệ thống sẽ tự động chạy review. Nếu code vi phạm quy tắc, lệnh commit sẽ bị chặn đứng (Rejected).
+
+---
 
 ### Cách B: Kích hoạt toàn cầu (Cho tất cả dự án trên máy)
 ```bash

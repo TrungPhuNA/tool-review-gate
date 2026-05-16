@@ -47,20 +47,28 @@ async function main() {
         message = fs.readFileSync(commitMsgFile, 'utf8').trim();
     } else {
         try {
+            // Khi chạy CLI thủ công, chúng ta lấy message của commit cuối để tham khảo 
+            // hoặc bỏ qua rule message nếu chưa có commit.
             message = execSync('git log -1 --pretty=%B', { encoding: 'utf8' }).trim();
-            console.log(`📦 Đang kiểm tra commit cuối cùng...`);
+            console.log(`🔍 [ReviewGate] Đang quét các file bạn đã 'git add'...`.bold.cyan);
         } catch (e) {
-            console.error('❌ Lỗi: Thư mục này không phải là một Git repository.');
-            process.exit(1);
+            message = 'Manual Review';
         }
     }
 
-    // Lấy danh sách các file đã được staged (git add) để review
+    // Lấy danh sách các file đã thay đổi (bao gồm cả đã add và chưa add)
     let files = [];
     try {
-        const diffCommand = commitMsgFile ? 'git diff --cached --name-only' : 'git diff --name-only HEAD~1 HEAD';
+        // Quét tất cả các file có thay đổi so với commit gần nhất
+        const diffCommand = 'git diff HEAD --name-only';
         const filesOutput = execSync(diffCommand, { encoding: 'utf8' }).trim();
         files = filesOutput ? filesOutput.split('\n') : [];
+
+        if (files.length === 0) {
+            console.log(`ℹ️  Không tìm thấy thay đổi nào so với commit cuối.`.italic.muted);
+        } else {
+            console.log(`📝 Phát hiện ${files.length} file có thay đổi...`.italic);
+        }
     } catch (e) {
         console.warn('⚠️ Cảnh báo: Không thể lấy danh sách file thay đổi.');
     }
