@@ -26,7 +26,7 @@ class EslintCheckRule extends BaseRule {
             const cmd = fs.existsSync(eslintPath) ? eslintPath : 'eslint';
             
             // Sử dụng file cấu hình tập trung để đảm bảo ổn định
-            const configPath = path.resolve(__dirname, '../../core/review-eslint-config.json');
+            const configPath = path.resolve(__dirname, '../../../core/review-eslint-config.json');
             const command = `${cmd} ${jsFiles.join(' ')} --no-eslintrc -c ${configPath} --format json`;
             
             execSync(command, { 
@@ -36,28 +36,34 @@ class EslintCheckRule extends BaseRule {
             });
             return { valid: true };
         } catch (error) {
+            let errorMessages = [];
+            
             if (error.stdout) {
                 try {
                     const results = JSON.parse(error.stdout);
-                    let errorMessages = [];
-
                     results.forEach(fileResult => {
                         fileResult.messages.forEach(msg => {
-                            if (msg.severity === 2) { // 2 = Error
-                                errorMessages.push(`${path.basename(fileResult.filePath)}:${msg.line} - ${msg.message}`);
+                            // Bắt cả lỗi Error (2) và các lỗi Fatal/Parsing (msg.fatal)
+                            if (msg.severity === 2 || msg.fatal) {
+                                errorMessages.push(`${path.basename(fileResult.filePath)}:${msg.line || '?'} - ${msg.message}`);
                             }
                         });
                     });
-
-                    if (errorMessages.length > 0) {
-                        return {
-                            valid: false,
-                            error: `Phát hiện ${errorMessages.length} lỗi kỹ thuật nghiêm trọng:\n      ` + errorMessages.slice(0, 5).join('\n      ')
-                        };
-                    }
-                } catch (e) {}
+                } catch (e) {
+                    errorMessages.push('ESLint execution failed. Please check your syntax or config.');
+                }
+            } else {
+                errorMessages.push(error.message || 'Unknown ESLint error');
             }
-            return { valid: true }; // Nếu không parse được lỗi thì tạm cho qua để tránh block nhầm
+
+            if (errorMessages.length > 0) {
+                return {
+                    valid: false,
+                    error: `Phát hiện ${errorMessages.length} lỗi kỹ thuật/cú pháp:\n      ` + errorMessages.slice(0, 5).join('\n      ')
+                };
+            }
+            
+            return { valid: false, error: 'ESLint check failed unexpectedly.' };
         }
     }
 }
