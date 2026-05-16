@@ -6,14 +6,42 @@ const ReviewEngine = require(path.join(__dirname, 'worker/core/engine'));
 
 const { execSync } = require('child_process');
 
+require('colors');
+
 /**
- * Script này hỗ trợ 2 chế độ:
+ * Script này hỗ trợ 3 chế độ:
  * 1. Chạy qua Git Hook: node local-check.js .git/COMMIT_EDITMSG
  * 2. Chạy trực tiếp (CLI): node local-check.js
+ * 3. Cài đặt Hook cho project mới: review-check init
  */
 async function main() {
+    const args = process.argv.slice(2);
+    
+    // Tính năng cài đặt Hook tự động
+    if (args[0] === 'init') {
+        console.log(`\n🛠️  Đang thiết lập ReviewGate Hook cho dự án này...`.bold.cyan);
+        
+        let gitRoot;
+        try {
+            gitRoot = execSync('git rev-parse --show-toplevel', { encoding: 'utf8' }).trim();
+        } catch (e) {
+            console.error('❌ Lỗi: Thư mục này không nằm trong một Git repository.'.red);
+            process.exit(1);
+        }
+
+        const hooksDir = path.join(gitRoot, '.git', 'hooks');
+        const preCommitPath = path.join(hooksDir, 'pre-commit');
+        // Script hook sẽ gọi lệnh review-check toàn cục
+        const hookContent = `#!/bin/sh\nreview-check\n`;
+        
+        fs.writeFileSync(preCommitPath, hookContent, { mode: 0o755 });
+        console.log(`✅ Đã cài đặt pre-commit hook thành công!`.green);
+        console.log(`🚀 Từ giờ, mỗi khi bạn 'git commit', hệ thống sẽ tự động quét code.\n`.italic);
+        process.exit(0);
+    }
+
     let message = '';
-    const commitMsgFile = process.argv[2];
+    const commitMsgFile = args[0];
 
     if (commitMsgFile) {
         message = fs.readFileSync(commitMsgFile, 'utf8').trim();

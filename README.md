@@ -1,6 +1,6 @@
 # 🚀 Tool Review Gate - Hướng dẫn sử dụng
 
-Hệ thống kiểm soát chất lượng commit tập trung cho nhiều dự án.
+Hệ thống kiểm soát chất lượng commit tập trung cho nhiều dự án (PHP Laravel, NodeJS, ReactJS).
 
 ## 1. Cài đặt lệnh kiểm tra toàn cục (CLI)
 
@@ -11,58 +11,73 @@ cd /Users/phuphan/Documents/work/tool/tool-review-gate
 npm link
 ```
 
-Bây giờ bạn có thể dùng lệnh: `review-check` để kiểm tra commit cuối cùng của project hiện tại.
+Bây giờ bạn có thể dùng lệnh: `review-check` để kiểm tra commit của project hiện tại.
 
 ---
 
-## 2. Tự động hóa cho 100+ Project (Global Hooks)
+## 2. Cách kích hoạt bảo vệ cho dự án (Git Hooks)
 
-Đây là cách tốt nhất để ép buộc mọi project trên máy phải tuân thủ quy tắc commit mà không cần cài đặt từng cái.
-
-### Bước 1: Tạo thư mục hook dùng chung
+### Cách A: Kích hoạt thủ công cho từng dự án (Khuyên dùng)
+Di chuyển vào thư mục dự án bạn muốn bảo vệ và chạy:
 ```bash
-mkdir -p ~/.git-global-hooks/hooks
+review-check init
 ```
+**Kết quả:** Mỗi khi bạn gõ `git commit`, hệ thống sẽ tự động quét code và message. Nếu có lỗi nghiêm trọng, commit sẽ bị chặn đứng.
 
-### Bước 2: Tạo file điều hướng hook
-```bash
-echo "#!/bin/bash
-review-check \$1" > ~/.git-global-hooks/hooks/commit-msg
-
-chmod +x ~/.git-global-hooks/hooks/commit-msg
-```
-
-### Bước 3: Kích hoạt toàn cầu
+### Cách B: Kích hoạt toàn cầu (Cho tất cả dự án trên máy)
 ```bash
 git config --global core.hooksPath ~/.git-global-hooks/hooks
 ```
-
-**Kể từ giờ:** Mỗi khi bạn gõ `git commit` ở bất kỳ đâu, hệ thống sẽ tự động chạy review.
-
----
-
-## 3. Cách tùy chỉnh Luật (Rules)
-
-Để thay đổi các quy tắc (ví dụ: đổi prefix message, thêm linter), bạn chỉ cần sửa file sau:
-
-📍 Path: `/Users/phuphan/Documents/work/tool/tool-review-gate/worker/engine.js`
-
-Mọi thay đổi trong file này sẽ có hiệu lực ngay lập tức cho tất cả các project trên máy bạn.
+*(Xem chi tiết cấu hình tại mục 2 của bản cũ nếu cần dùng cách này)*
 
 ---
 
-## 4. Cấu trúc thư mục dự án
+## 3. Giao diện quản lý (Dashboard)
 
-- `/api`: Backend xử lý Webhook từ GitHub/GitLab (Dùng cho CI/CD sau này).
-- `/worker`: Chứa "Bộ não" `engine.js` xử lý logic review code.
-- `/ui`: (Sắp tới) Giao diện quản lý lịch sử review.
-- `local-check.js`: File cầu nối giữa Git và Review Engine.
+Hệ thống cung cấp giao diện Web Premium để theo dõi lịch sử review và lỗi chi tiết.
+
+### Bước 1: Khởi động API & Database
+```bash
+cd api
+# Cấu hình .env (DB_NAME, DB_USER, DB_PASS...)
+node index.js
+```
+
+### Bước 2: Khởi động giao diện
+```bash
+cd ui
+npm run dev
+```
+Truy cập: `http://localhost:5173` để xem Dashboard.
 
 ---
 
-## 5. Gỡ bỏ (Nếu cần)
+## 4. Cách bổ sung Luật (Rules) mới
 
-Nếu bạn muốn tắt tính năng tự động cho mọi project:
+Hệ thống được thiết kế dạng Modular. Để thêm rule mới, bạn chỉ cần tạo file `.js` vào đúng thư mục ngôn ngữ:
+
+📍 Path: `worker/rules/[ngôn-ngữ]/[nhóm-rule]/tên-rule.js`
+
+**Ví dụ:** Muốn thêm rule kiểm tra bảo mật cho PHP, hãy tạo file trong `worker/rules/php-laravel/security/`. Hệ thống sẽ tự động nạp mà không cần khởi động lại.
+
+---
+
+## 5. Cấu trúc thư mục
+
+- `/worker`: Chứa bộ máy quét (Engine) và các Rules (NodeJS, PHP, React).
+- `/api`: Backend (NodeJS + MySQL) lưu trữ lịch sử review.
+- `/ui`: Dashboard (ReactJS + Tailwind CSS) hiển thị thống kê và lỗi chi tiết.
+- `local-check.js`: CLI entry point cho lệnh `review-check`.
+
+---
+
+## 6. Gỡ bỏ bảo vệ
+
+Nếu bạn muốn tắt tính năng tự động cho một dự án, hãy xóa file hook:
+```bash
+rm .git/hooks/pre-commit
+```
+Hoặc tắt toàn cầu:
 ```bash
 git config --global --unset core.hooksPath
 ```
