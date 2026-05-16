@@ -18,11 +18,13 @@ class CommitMessageRule extends BaseRule {
             return { valid: false, error: 'Không tìm thấy nội dung commit message.' };
         }
 
-        const regex = /^(\[.*\]|revert:).* /i;
+        // Regex mới: Chấp nhận [TAG], tag: hoặc revert:
+        const regex = /^(\[.*\]|(feat|fix|chore|docs|style|refactor|perf|test|revert):).* /i;
+        
         if (!regex.test(message)) {
             return {
                 valid: false,
-                error: 'Commit message sai định dạng. Ví dụ đúng: "[FEAT] Thêm chức năng login"'
+                error: 'Commit message sai định dạng. Ví dụ: "[FEAT] ..." hoặc "feat: ..."'
             };
         }
 

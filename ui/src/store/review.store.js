@@ -8,46 +8,29 @@ export const useReviewStore = create((set) => ({
   activeReview: null,
   isLoading: false,
 
-  // Giả lập load dữ liệu (Sau này sẽ gọi tới API NodeJS)
+  // Lấy dữ liệu thật từ API NodeJS
   fetchReviews: async () => {
     set({ isLoading: true });
     try {
-      // Demo data
-      const demoData = [
-        {
-          id: '1',
-          repo: 'TrungPhuNA/tool-review-gate',
-          commitHash: '7c92f1a3',
-          author: 'phuphan',
-          message: '[FEAT] Setup review gate engine',
-          status: 'accepted',
-          timestamp: new Date().toISOString(),
-          projectType: 'nodejs',
-          groups: {
-            security: { valid: true, issues: [] },
-            standard: { valid: true, issues: [] }
-          }
-        },
-        {
-          id: '2',
-          repo: 'TrungPhuNA/laravel-web',
-          commitHash: 'a1b2c3d4',
-          author: 'dev02',
-          message: 'update .env file',
-          status: 'rejected',
-          timestamp: new Date().toISOString(),
-          projectType: 'php-laravel',
-          groups: {
-            security: { 
-              valid: false, 
-              issues: [{ rule: 'No .env file allowed', error: 'Phát hiện file .env trong commit' }] 
-            }
-          }
-        }
-      ];
+      const response = await fetch('http://localhost:3000/api/reviews');
+      const data = await response.json();
       
-      await new Promise(resolve => setTimeout(resolve, 800));
-      set({ reviews: demoData });
+      // Chuyển đổi dữ liệu từ DB sang format của Store
+      const formattedData = data.map(r => ({
+        id: r.id.toString(),
+        repo: r.repo,
+        commitHash: r.commitHash.substring(0, 7),
+        author: r.author,
+        message: r.message,
+        status: r.status,
+        timestamp: r.createdAt,
+        projectType: r.projectType,
+        groups: r.details?.groups || {}
+      }));
+
+      set({ reviews: formattedData });
+    } catch (error) {
+      console.error('❌ Lỗi khi tải dữ liệu từ API:', error);
     } finally {
       set({ isLoading: false });
     }

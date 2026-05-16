@@ -1,97 +1,118 @@
-const express = require('express');
-const bodyParser = require('body-parser');
-const crypto = require('crypto');
 require('dotenv').config();
+const express = require('express');
+const crypto = require('crypto');
+const cors = require('cors');
+const ReviewEngine = require('../worker/core/engine');
+const Review = require('./models/Review');
+const GithubStatusService = require('./services/githubStatus');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Secret key dùng để verify webhook từ GitHub (Cần cấu hình trong .env)
-const GITHUB_SECRET = process.env.GITHUB_SECRET || 'review_gate_secret';
-
-app.use(bodyParser.json());
+app.use(express.json());
+app.use(cors()); // Cho phép React Frontend gọi API
 
 /**
- * Middleware xác thực chữ ký từ GitHub để đảm bảo bảo mật
+ * Middleware kiểm tra Signature từ GitHub (Bảo mật)
  */
 function verifySignature(req, res, next) {
     const signature = req.headers['x-hub-signature-256'];
-    if (!signature) {
-        return res.status(401).send('No signature found');
-    }
+    if (!signature) return res.status(401).send('Missing signature');
 
-    const hmac = crypto.createHmac('sha256', GITHUB_SECRET);
-    // Lưu ý: Phải dùng raw body để hash chính xác nhất
+    const hmac = crypto.createHmac('sha256', process.env.GITHUB_SECRET || 'test_secret');
     const digest = 'sha256=' + hmac.update(JSON.stringify(req.body)).digest('hex');
 
-    if (signature !== digest) {
-        console.error('❌ Signature mismatch!');
-        return res.status(401).send('Invalid signature');
-    }
+    if (signature !== digest) return res.status(401).send('Invalid signature');
     next();
 }
 
-const ReviewEngine = require('../worker/engine');
-
 /**
- * Endpoint tiếp nhận Webhook từ GitHub
+ * Webhook nhận commit từ GitHub
  */
 app.post('/webhook/github', async (req, res) => {
-    const event = req.headers['x-github-event'];
     const payload = req.body;
+    const repo = payload.repository?.full_name;
+    const commitHash = payload.after;
+    const author = payload.pusher?.name;
+    const commitMessage = payload.commits?.[0]?.message || 'No message';
 
-    console.log(`\n🚀 Received GitHub event: ${event}`);
+    if (!repo || !commitHash) return res.status(400).send('Invalid payload');
 
-    // Xử lý sự kiện Push hoặc Pull Request
-    if (event === 'push' || event === 'pull_request') {
-        const repo = payload.repository?.full_name;
-        const commitHash = event === 'push' ? payload.after : payload.pull_request?.head?.sha;
-        const author = event === 'push' ? payload.pusher?.name : payload.pull_request?.user?.login;
-        const commitMessage = payload.commits?.[0]?.message || 'No message';
+    console.log(`\n🚀 [Webhook] Nhận commit mới: ${commitHash.substring(0, 7)} từ ${repo}`);
 
-        if (commitHash === '0000000000000000000000000000000000000000') {
-            return res.status(200).send('Branch deletion ignored');
-        }
+    // 1. Gửi trạng thái PENDING lên GitHub
+    await GithubStatusService.updateStatus(repo, commitHash, 'pending', 'http://localhost:5173', 'ReviewGate đang kiểm tra code...');
 
-        console.log(`-------------------------------------------`);
-        console.log(`📦 Repo: ${repo}`);
-        console.log(`🔑 Commit: ${commitHash}`);
-        console.log(`👤 Author: ${author}`);
-        console.log(`📝 Message: ${commitMessage}`);
-        console.log(`-------------------------------------------`);
+    // 2. Chạy bộ máy Review
+    // Trong môi trường Webhook, chúng ta giả định context là project được gửi tới
+    // (Thực tế cần clone repo về một thư mục tạm, ở đây demo dùng process.cwd)
+    const result = await ReviewEngine.runReview(process.cwd(), {
+        message: commitMessage,
+        files: payload.commits?.[0]?.modified || []
+    });
 
-        // 1. Kiểm tra Commit Message
-        const messageCheck = ReviewEngine.checkCommitMessage(commitMessage);
-        
-        if (!messageCheck.valid) {
-            console.error(`❌ Review Failed: ${messageCheck.error}`);
-            // Ở đây sau này sẽ gọi GitHub API để báo đỏ (Reject)
-            return res.json({
-                status: 'rejected',
-                reason: messageCheck.error
-            });
-        }
+    // 3. Lưu kết quả vào Database
+    const reviewRecord = await Review.create({
+        repo,
+        commitHash,
+        author,
+        message: commitMessage,
+        status: result.valid ? 'accepted' : 'rejected',
+        projectType: result.projectType,
+        details: result
+    });
 
-        // 2. Chạy Linter (Quét code)
-        const linterResult = await ReviewEngine.runLinter(commitHash);
+    // 4. Cập nhật kết quả cuối cùng lên GitHub
+    const state = result.valid ? 'success' : 'failure';
+    const description = result.valid ? 'Tuyệt vời! Code của bạn đã vượt qua tất cả các kiểm tra.' : `Phát hiện lỗi vi phạm. Vui lòng kiểm tra lại.`;
+    
+    // Link tới chi tiết bản review trên Dashboard
+    const detailUrl = `http://localhost:5173/review/${reviewRecord.id}`;
+    await GithubStatusService.updateStatus(repo, commitHash, state, detailUrl, description);
 
-        console.log(`✅ Review Passed! All checks completed.`);
-        
-        return res.json({
-            status: 'accepted',
-            details: { repo, commitHash, author, linter: linterResult }
-        });
-    }
-
-    res.status(200).send('Event not handled');
+    res.json({ status: 'ok', reviewId: reviewRecord.id });
 });
 
-// Trang chủ kiểm tra server
-app.get('/', (req, res) => {
-    res.send('ReviewGate API is up and running! 🚀');
+/**
+ * API Lấy danh sách reviews cho Dashboard
+ */
+app.get('/api/reviews', async (req, res) => {
+    try {
+        const reviews = await Review.findAll({
+            order: [['createdAt', 'DESC']],
+            limit: 20
+        });
+        res.json(reviews);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+/**
+ * API Lấy chi tiết một bản review
+ */
+app.get('/api/reviews/:id', async (req, res) => {
+    try {
+        const review = await Review.findByPk(req.params.id);
+        if (!review) return res.status(404).json({ error: 'Not found' });
+        res.json(review);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+/**
+ * API Nhận kết quả review từ lệnh local (review-check)
+ */
+app.post('/api/reviews/local', async (req, res) => {
+    try {
+        const review = await Review.create(req.body);
+        res.json({ status: 'ok', id: review.id });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
 });
 
 app.listen(PORT, () => {
-    console.log(`\n✅ ReviewGate API is running on http://localhost:${PORT}`);
-    console.log(`🔗 Webhook URL: http://your-domain/webhook/github`);
+    console.log(`\n✅ Review Gate API is running on http://localhost:${PORT}`);
 });
