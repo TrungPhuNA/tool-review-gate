@@ -1,11 +1,12 @@
+import { NavLink } from 'react-router-dom';
 import { LayoutDashboard, FolderCode, History, Settings, ShieldCheck } from 'lucide-react';
 
 const MENU_ITEMS = [
-  { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { id: 'projects', label: 'Projects', icon: FolderCode },
-  { id: 'history', label: 'Review History', icon: History },
-  { id: 'rules', label: 'Global Rules', icon: ShieldCheck },
-  { id: 'settings', label: 'Settings', icon: Settings },
+  { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, path: '/' },
+  { id: 'projects', label: 'Projects', icon: FolderCode, path: '/projects' },
+  { id: 'history', label: 'Review History', icon: History, path: '/history' },
+  { id: 'rules', label: 'Global Rules', icon: ShieldCheck, path: '/rules' },
+  { id: 'settings', label: 'Settings', icon: Settings, path: '/settings' },
 ];
 
 function Sidebar() {
@@ -25,17 +26,19 @@ function Sidebar() {
 
       <nav className="flex-1 px-4 space-y-1">
         {MENU_ITEMS.map((item) => (
-          <button
+          <NavLink
             key={item.id}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all group ${
-              item.id === 'dashboard' 
+            to={item.path}
+            className={({ isActive }) => `
+              w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all group
+              ${isActive 
                 ? 'bg-softBlue text-electric' 
-                : 'text-muted hover:bg-surfaceSoft hover:text-ink'
-            }`}
+                : 'text-muted hover:bg-surfaceSoft hover:text-ink'}
+            `}
           >
-            <item.icon size={20} className={item.id === 'dashboard' ? 'text-electric' : 'group-hover:scale-110 transition-transform'} />
+            <item.icon size={20} className="group-hover:scale-110 transition-transform" />
             <span className="type-label">{item.label}</span>
-          </button>
+          </NavLink>
         ))}
       </nav>
 

@@ -12,9 +12,9 @@ function Dashboard() {
 
   const stats = [
     { label: 'Total Reviews', value: reviews.length, icon: GitCommit, color: 'text-ink' },
+    { label: 'Passed', value: reviews.filter(r => r.status === 'accepted').length, icon: CheckCircle2, color: 'text-emerald-500' },
     { label: 'Rejected', value: reviews.filter(r => r.status === 'rejected').length, icon: XCircle, color: 'text-accent' },
-    { label: 'Avg Time', value: '0.8s', icon: Clock, color: 'text-electric' },
-    { label: 'Security Alerts', value: reviews.filter(r => r.groups.security?.issues?.length > 0).length, icon: ShieldCheck, color: 'text-emerald-500' },
+    { label: 'Security Alerts', value: reviews.filter(r => r.groups.security?.issues?.length > 0).length, icon: ShieldCheck, color: 'text-amber-500' },
   ];
 
   return (
