@@ -15,16 +15,23 @@ class PSRStandardRule extends BaseRule {
         if (phpFiles.length === 0) return { valid: true };
 
         const { execSync } = require('child_process');
+        const path = require('path');
+        const fs = require('fs');
+        const projectPath = process.cwd();
         const issues = [];
 
         for (const file of phpFiles) {
             try {
-                // Kiểm tra lỗi cú pháp cơ bản
-                execSync(`php -l ${file}`, { stdio: 'ignore' });
+                const absolutePath = path.resolve(projectPath, file);
+                if (!fs.existsSync(absolutePath)) continue;
+
+                // Kiểm tra lỗi cú pháp cơ bản và lấy output chi tiết
+                execSync(`php -l ${absolutePath}`, { stdio: ['ignore', 'pipe', 'ignore'], encoding: 'utf8' });
             } catch (e) {
+                const detailedError = e.stdout ? e.stdout.trim().split('\n')[0] : 'Lỗi cú pháp không xác định';
                 issues.push({
                     rule: 'PHP Syntax',
-                    error: `Lỗi cú pháp tại file ${file}. Hãy kiểm tra lại code.`,
+                    error: `${path.basename(file)} - ${detailedError}`,
                     severity: 'error'
                 });
             }

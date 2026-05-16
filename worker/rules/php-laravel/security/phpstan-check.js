@@ -61,32 +61,51 @@ class PHPStanCheckRule extends BaseRule {
                 if (!fs.existsSync(absolutePath)) return;
 
                 const content = fs.readFileSync(absolutePath, 'utf8');
-                // Tìm các Class gọi theo kiểu Static Class::method()
-                const matches = content.match(/([A-Z][a-zA-Z0-9]+)::/g);
-                if (matches) {
-                    matches.forEach(match => {
-                        const className = match.replace('::', '');
-                        // Kiểm tra xem class đã được import chưa
-                        const isImported = content.includes(`use `) && 
-                                         (content.includes(`use ${className};`) || 
-                                          content.includes(`use App\\Models\\${className};`));
+                const lines = content.split('\n');
+                
+                // Danh sách class đã import
+                const importedClasses = new Set();
+                lines.forEach(line => {
+                    const trimLine = line.trim();
+                    if (trimLine.startsWith('use ') && !trimLine.includes('(')) {
+                        const parts = trimLine.split(' ');
+                        if (parts.length >= 2) {
+                            const fullClass = parts[1].replace(';', '');
+                            const className = fullClass.split('\\').pop();
+                            importedClasses.add(className);
+                            importedClasses.add(fullClass);
+                        }
+                    }
+                });
 
-                        if (!isImported) {
-                            // Ngoại lệ cho các Class toàn cục của Laravel hoặc PHP
-                            const globals = ['Route', 'Log', 'Config', 'DB', 'Auth', 'Request', 'Response', 'Str', 'Arr', 'User'];
-                            // Chỗ này User bạn bảo chưa import nên tôi sẽ bỏ User ra khỏi globals để nó báo lỗi
-                            const realGlobals = globals.filter(g => g !== 'User');
-
-                            if (realGlobals.indexOf(className) === -1) {
-                                 issues.push({
+                // Quét từng dòng để tìm việc gọi Class::method
+                lines.forEach((line, index) => {
+                    const match = line.match(/([A-Z][a-zA-Z0-9]+)::/);
+                    if (match) {
+                        const className = match[1];
+                        
+                        if (className === 'User') {
+                            const isImported = importedClasses.has('User') || importedClasses.has('App\\Models\\User');
+                            if (!isImported) {
+                                console.log(`   [Debug] Found ${className}:: at line ${index + 1} in ${path.basename(file)} (Not Imported!)`.red);
+                                issues.push({
                                     rule: 'Namespace Check',
-                                    error: `${path.basename(file)}:${className} - Chưa Import (use) Class này.`,
+                                    error: `${path.basename(file)}:${index + 1} - Class "${className}" chưa được import (use).`,
+                                    severity: 'error'
+                                });
+                            }
+                        } else {
+                            const systemGlobals = ['Route', 'Log', 'Config', 'DB', 'Auth', 'Request', 'Response', 'Str', 'Arr', 'Http'];
+                            if (!systemGlobals.includes(className) && !importedClasses.has(className)) {
+                                issues.push({
+                                    rule: 'Namespace Check',
+                                    error: `${path.basename(file)}:${index + 1} - Class "${className}" chưa được import (use).`,
                                     severity: 'error'
                                 });
                             }
                         }
-                    });
-                }
+                    }
+                });
             } catch (err) {}
         });
 
