@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { useReviewStore } from '../store/review.store';
-import { CheckCircle2, XCircle, Clock, ChevronRight, Activity, GitCommit, AlertTriangle } from 'lucide-react';
+import { CheckCircle2, XCircle, Clock, ChevronRight, Activity, GitCommit, AlertTriangle, ShieldCheck } from 'lucide-react';
 
 function Dashboard() {
   const { reviews, isLoading, fetchReviews } = useReviewStore();

@@ -27,12 +27,22 @@ async function main() {
         }
     }
 
-    console.log(`\n🔍 [ReviewGate Local] Đang chạy kiểm tra toàn diện...`);
+    // Lấy danh sách các file đã được staged (git add) để review
+    let files = [];
+    try {
+        const diffCommand = commitMsgFile ? 'git diff --cached --name-only' : 'git diff --name-only HEAD~1 HEAD';
+        const filesOutput = execSync(diffCommand, { encoding: 'utf8' }).trim();
+        files = filesOutput ? filesOutput.split('\n') : [];
+    } catch (e) {
+        console.warn('⚠️ Cảnh báo: Không thể lấy danh sách file thay đổi.');
+    }
 
-    // Thực hiện review với context mở rộng (sau này có thể thêm danh sách files)
+    console.log(`\n🔍 [ReviewGate Local] Đang chạy kiểm tra toàn diện (${files.length} files)...`);
+
+    // Thực hiện review với context đầy đủ
     const result = await ReviewEngine.runReview(process.cwd(), { 
         message,
-        files: [] // Tạm thời để trống, có thể lấy bằng lệnh git diff
+        files 
     });
 
     if (!result.valid) {
