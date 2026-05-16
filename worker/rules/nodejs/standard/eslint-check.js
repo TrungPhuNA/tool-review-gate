@@ -21,13 +21,18 @@ class EslintCheckRule extends BaseRule {
         console.log(`   [ESLint] Đang quét ${jsFiles.length} files...`);
 
         try {
-            const eslintPath = path.join(__dirname, '../../../../node_modules/.bin/eslint');
-            const cmd = fs.existsSync(eslintPath) ? eslintPath : 'npx eslint';
+            // Tìm eslint ở thư mục gốc của dự án tool-review-gate
+            const eslintPath = path.resolve(__dirname, '../../../../node_modules/.bin/eslint');
+            const cmd = fs.existsSync(eslintPath) ? eslintPath : 'eslint';
             
-            // Lệnh quét chuẩn cho ESLint v8 (hỗ trợ tốt quét nhanh qua CLI)
+            // Lệnh quét chuẩn cho ESLint v8
             const command = `${cmd} ${jsFiles.join(' ')} --no-eslintrc --env browser,node,es2021 --parser-options=ecmaVersion:latest,sourceType:module --parser-options=ecmaFeatures:jsx --plugin react --rule 'no-undef: error' --rule 'no-unused-vars: error' --rule 'no-redeclare: error' --format json`;
             
-            const output = execSync(command, { encoding: 'utf8', stdio: 'pipe' });
+            const output = execSync(command, { 
+                encoding: 'utf8', 
+                stdio: ['ignore', 'pipe', 'ignore'], // Chỉ lấy stdout
+                maxBuffer: 1024 * 1024 * 10 // 10MB buffer
+            });
             return { valid: true };
         } catch (error) {
             if (error.stdout) {

@@ -8,7 +8,6 @@ import GlobalRules from './pages/GlobalRules';
 import Settings from './pages/Settings';
 
 function App() {
-    const projectType = localStorage.getItem('projectType');
     return (
         <Router>
             <div className="flex min-h-screen bg-surface">
