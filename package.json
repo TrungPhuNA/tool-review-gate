@@ -1,0 +1,14 @@
+{
+  "name": "review-gate",
+  "version": "1.0.0",
+  "description": "Hệ thống kiểm soát commit tập trung",
+  "main": "local-check.js",
+  "bin": {
+    "review-check": "./local-check.js"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC"
+}
