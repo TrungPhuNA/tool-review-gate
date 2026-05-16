@@ -86,7 +86,10 @@ class PHPStanCheckRule extends BaseRule {
                         
                         if (className === 'User') {
                             const isImported = importedClasses.has('User') || importedClasses.has('App\\Models\\User');
-                            if (!isImported) {
+                            // Kiểm tra xem User.php có nằm cùng thư mục không
+                            const isSameDir = fs.existsSync(path.join(path.dirname(absolutePath), `${className}.php`));
+                            
+                            if (!isImported && !isSameDir) {
                                 console.log(`   [Debug] Found ${className}:: at line ${index + 1} in ${path.basename(file)} (Not Imported!)`.red);
                                 issues.push({
                                     rule: 'Namespace Check',
@@ -96,7 +99,9 @@ class PHPStanCheckRule extends BaseRule {
                             }
                         } else {
                             const systemGlobals = ['Route', 'Log', 'Config', 'DB', 'Auth', 'Request', 'Response', 'Str', 'Arr', 'Http'];
-                            if (!systemGlobals.includes(className) && !importedClasses.has(className)) {
+                            const isSameDir = fs.existsSync(path.join(path.dirname(absolutePath), `${className}.php`));
+
+                            if (!systemGlobals.includes(className) && !importedClasses.has(className) && !isSameDir) {
                                 issues.push({
                                     rule: 'Namespace Check',
                                     error: `${path.basename(file)}:${index + 1} - Class "${className}" chưa được import (use).`,

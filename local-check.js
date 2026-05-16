@@ -59,9 +59,12 @@ async function main() {
     let files = [];
     try {
         // Quét tất cả các file có thay đổi so với commit gần nhất
-        const diffCommand = 'git diff HEAD --name-only';
-        const filesOutput = execSync(diffCommand, { encoding: 'utf8' }).trim();
-        files = filesOutput ? filesOutput.split('\n') : [];
+        // Lấy cả file đã tracked và untracked
+        const trackedFiles = execSync('git diff HEAD --name-only', { encoding: 'utf8' }).trim();
+        const untrackedFiles = execSync('git ls-files --others --exclude-standard', { encoding: 'utf8' }).trim();
+        
+        const allFiles = (trackedFiles + '\n' + untrackedFiles).trim();
+        files = allFiles ? [...new Set(allFiles.split('\n'))] : [];
 
         if (files.length === 0) {
             console.log(`ℹ️  Không tìm thấy thay đổi nào so với commit cuối.`.italic.muted);
