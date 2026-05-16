@@ -47,12 +47,11 @@ async function main() {
         message = fs.readFileSync(commitMsgFile, 'utf8').trim();
     } else {
         try {
-            // Khi chạy CLI thủ công, chúng ta lấy message của commit cuối để tham khảo 
-            // hoặc bỏ qua rule message nếu chưa có commit.
-            message = execSync('git log -1 --pretty=%B', { encoding: 'utf8' }).trim();
-            console.log(`🔍 [ReviewGate] Đang quét các file bạn đã 'git add'...`.bold.cyan);
+            // Khi chạy CLI thủ công, chúng ta bỏ qua kiểm tra message
+            message = 'SKIP_CHECK';
+            console.log(`🔍 [ReviewGate] Đang quét các file bạn đang sửa...`.bold.cyan);
         } catch (e) {
-            message = 'Manual Review';
+            message = 'SKIP_CHECK';
         }
     }
 
@@ -105,24 +104,43 @@ async function main() {
         console.warn('⚠️  Cảnh báo: Không thể kết nối tới Dashboard API. Dữ liệu sẽ không được lưu vào lịch sử.'.yellow);
     }
 
-    if (!result.valid) {
+    // Kiểm tra xem có bất kỳ lỗi hoặc cảnh báo nào không
+    const hasIssues = Object.values(result.groups).some(g => g.issues.length > 0);
+
+    if (hasIssues) {
         console.log(`\n-------------------------------------------------------`);
-        console.log(`❌  COMMIT REJECTED - [${result.projectType.toUpperCase()}]`.red.bold);
+        const statusText = result.valid ? '✅ COMMIT ALLOWED (WITH WARNINGS)'.yellow.bold : '❌ COMMIT REJECTED'.red.bold;
+        console.log(statusText + ` - [${result.projectType.toUpperCase()}]`);
         
         Object.keys(result.groups).forEach(groupName => {
             const group = result.groups[groupName];
-            if (!group.valid) {
-                console.log(`\n📌  Phát hiện lỗi tại nhóm: ${groupName.toUpperCase().red}`);
-                group.issues.forEach(issue => {
-                    console.log(`   - ${issue.rule.bold}: ${issue.error}`);
+            if (group.issues.length > 0) {
+                const groupLabel = group.valid ? groupName.toUpperCase().yellow : groupName.toUpperCase().red;
+                console.log(`\n📌  Phát hiện vấn đề tại nhóm: ${groupLabel}`);
+                group.issues.forEach(report => {
+                    const icon = report.severity === 'error' ? '✘'.red : '⚠'.yellow;
+                    
+                    if (report.issues && report.issues.length > 0) {
+                        // Trường hợp Rule trả về danh sách nhiều lỗi
+                        report.issues.forEach(subIssue => {
+                            const subIcon = subIssue.severity === 'error' ? '✘'.red : '⚠'.yellow;
+                            console.log(`   ${subIcon} ${report.rule.bold}: ${subIssue.error}`);
+                        });
+                    } else if (report.error) {
+                        // Trường hợp Rule trả về 1 lỗi duy nhất
+                        console.log(`   ${icon} ${report.rule.bold}: ${report.error}`);
+                    }
                 });
             }
         });
         
         console.log(`\n-------------------------------------------------------`);
-        console.log(`💡  Gợi ý: Hãy sửa các lỗi trên trước khi commit lại.\n`);
-        
-        process.exit(1);
+        if (!result.valid) {
+            console.log(`💡  Gợi ý: Hãy sửa các lỗi [ERROR] trên trước khi commit lại.\n`);
+            process.exit(1);
+        } else {
+            console.log(`💡  Gợi ý: Bạn nên sửa các cảnh báo [WARN] trên để code sạch hơn.\n`);
+        }
     }
 
     console.log(`\n✅  Review hoàn tất! (${result.summary.passed}/${result.summary.total} rules passed).`.green.bold);

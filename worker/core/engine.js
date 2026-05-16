@@ -17,8 +17,8 @@ class ReviewEngine {
         const projectType = ProjectDetector.detect(projectPath);
         console.log(`\n🔍 [Engine] Detecting project type: ${projectType.toUpperCase().cyan.bold}`);
 
-        // 2. Nạp danh sách Rule phù hợp
-        const rules = RuleLoader.getRules(projectType);
+        // 2. Nạp danh sách Rule phù hợp (bao gồm cả nạp chồng nếu là Hybrid project)
+        const rules = RuleLoader.getRules(projectType, projectPath);
         console.log(`📦 [Engine] Loaded ${rules.length.toString().yellow} rules for this session.\n`);
 
         const finalResult = {

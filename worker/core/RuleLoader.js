@@ -9,7 +9,7 @@ class RuleLoader {
      * @param {string} projectType - 'php-laravel', 'nodejs', etc.
      * @returns {BaseRule[]} - Danh sách các instance của Rule
      */
-    static getRules(projectType) {
+    static getRules(projectType, projectPath) {
         const rules = [];
         const rulesBaseDir = path.join(__dirname, '../rules');
 
@@ -21,6 +21,15 @@ class RuleLoader {
         if (projectType && projectType !== 'unknown') {
             const langDir = path.join(rulesBaseDir, projectType);
             rules.push(...this.loadRecursively(langDir));
+        }
+
+        // 3. ĐẶC BIỆT: Nếu là Laravel mà có ReactJS, nạp thêm bộ rule ReactJS
+        if (projectType === 'php-laravel' && projectPath) {
+            const hasReact = ['src/App.js', 'src/App.tsx', 'vite.config.js', 'package.json'].some(f => fs.existsSync(path.join(projectPath, f)));
+            if (hasReact) {
+                const reactDir = path.join(rulesBaseDir, 'reactjs');
+                rules.push(...this.loadRecursively(reactDir));
+            }
         }
 
         return rules;

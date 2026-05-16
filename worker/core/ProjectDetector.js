@@ -16,15 +16,17 @@ class ProjectDetector {
             'nodejs': ['package.json']
         };
 
-        // Ưu tiên check React trước Node vì React cũng có package.json
-        if (indicators['reactjs'].some(file => fs.existsSync(path.join(projectPath, file)))) {
-            return 'reactjs';
-        }
-
+        // Ưu tiên check Laravel trước tiên
         if (indicators['php-laravel'].some(file => fs.existsSync(path.join(projectPath, file)))) {
             return 'php-laravel';
         }
 
+        // Check React tiếp theo
+        if (indicators['reactjs'].some(file => fs.existsSync(path.join(projectPath, file)))) {
+            return 'reactjs';
+        }
+
+        // Cuối cùng mới là Node
         if (indicators['nodejs'].some(file => fs.existsSync(path.join(projectPath, file)))) {
             return 'nodejs';
         }

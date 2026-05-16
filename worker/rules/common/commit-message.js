@@ -14,6 +14,11 @@ class CommitMessageRule extends BaseRule {
     async check(context) {
         const message = context.message;
         
+        // Nếu là chạy nháp (CLI thủ công), bỏ qua rule này
+        if (message === 'SKIP_CHECK') {
+            return { valid: true };
+        }
+
         if (!message) {
             return { valid: false, error: 'Không tìm thấy nội dung commit message.' };
         }

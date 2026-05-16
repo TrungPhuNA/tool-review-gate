@@ -9,12 +9,32 @@ class PSRStandardRule extends BaseRule {
     }
 
     async check(context) {
-        // Trong thực tế sẽ gọi phpcs tại đây
-        // Bản test: Chỉ đưa ra cảnh báo nhắc nhở
-        return {
-            valid: false,
-            error: 'Nhắc nhở: Hãy đảm bảo code tuân thủ PSR-12. Chạy "composer lint" trước khi push.'
-        };
+        const { files } = context;
+        const phpFiles = files.filter(f => f.endsWith('.php'));
+        
+        if (phpFiles.length === 0) return { valid: true };
+
+        const { execSync } = require('child_process');
+        const issues = [];
+
+        for (const file of phpFiles) {
+            try {
+                // Kiểm tra lỗi cú pháp cơ bản
+                execSync(`php -l ${file}`, { stdio: 'ignore' });
+            } catch (e) {
+                issues.push({
+                    rule: 'PHP Syntax',
+                    error: `Lỗi cú pháp tại file ${file}. Hãy kiểm tra lại code.`,
+                    severity: 'error'
+                });
+            }
+        }
+
+        if (issues.length > 0) {
+            return { valid: false, issues };
+        }
+
+        return { valid: true };
     }
 }
 
